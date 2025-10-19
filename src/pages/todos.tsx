@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -12,54 +12,24 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import TodoModal from '@/components/TodoModal';
 import type { Todo } from '@/interfaces/todo.interface';
+import { TodoListService } from '@/services/todo-list.service';
 
-const FAKE_TODOS: Todo[] = [
-    {
-        id: 1,
-        title: 'Completar proyecto',
-        description: 'Terminar el frontend del todo-list',
-        completed: false,
-        created_at: '2025-10-17T10:00:00.000Z',
-        updated_at: '2025-10-17T10:00:00.000Z',
-    },
-    {
-        id: 2,
-        title: 'Revisar documentación',
-        description: 'Leer la documentación de la API',
-        completed: true,
-        created_at: '2025-10-17T09:00:00.000Z',
-        updated_at: '2025-10-17T11:00:00.000Z',
-    },
-    {
-        id: 3,
-        title: 'Configurar base de datos',
-        description: null,
-        completed: false,
-        created_at: '2025-10-17T08:00:00.000Z',
-        updated_at: '2025-10-17T08:00:00.000Z',
-    },
-    {
-        id: 4,
-        title: 'Implementar diseño responsive',
-        description: 'Asegurar que la aplicación se vea bien en móviles',
-        completed: false,
-        created_at: '2025-10-17T07:00:00.000Z',
-        updated_at: '2025-10-17T07:00:00.000Z',
-    },
-    {
-        id: 5,
-        title: 'Hacer testing',
-        description: 'Escribir tests unitarios y de integración',
-        completed: true,
-        created_at: '2025-10-16T10:00:00.000Z',
-        updated_at: '2025-10-17T12:00:00.000Z',
-    },
-];
 
 export default function TodosPage() {
-    const [todos, setTodos] = useState<Todo[]>(FAKE_TODOS);
+    const [todos, setTodos] = useState<Todo[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+
+    useEffect(() => {
+        loadTodos();
+    }, []);
+
+    const loadTodos = async () => {
+        const todosResponse = await TodoListService.getTodoLists();
+        if (todosResponse) {
+            setTodos(todosResponse);
+        }
+    }
 
     const handleAddTodo = () => {
         setSelectedTodo(null);
@@ -71,49 +41,51 @@ export default function TodosPage() {
         setIsModalOpen(true);
     };
 
-    const handleSaveTodo = (data: { title: string; description: string }) => {
+    const handleSaveTodo = async (data: { title: string; description: string }) => {
         if (selectedTodo) {
-            // Editar todo existente
-            setTodos(
-                todos.map((todo) =>
-                    todo.id === selectedTodo.id
-                        ? { ...todo, ...data, updated_at: new Date().toISOString() }
-                        : todo
-                )
-            );
+            const response = await TodoListService.updateTodoList(selectedTodo.id.toString(), data);
+            if (response) {
+                loadTodos();
+            }
         } else {
             // Crear nuevo todo
-            const newTodo: Todo = {
-                id: Math.max(...todos.map((t) => t.id)) + 1,
-                title: data.title,
-                description: data.description || null,
-                completed: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-            setTodos([newTodo, ...todos]);
+            const response = await TodoListService.createTodoList(data);
+
+            if (response) {
+                loadTodos();
+            }
         }
     };
 
-    const handleToggleTodo = (id: number) => {
-        setTodos(
-            todos.map((todo) =>
-                todo.id === id
-                    ? { ...todo, completed: !todo.completed, updated_at: new Date().toISOString() }
-                    : todo
-            )
-        );
+    const handleToggleTodo = async (id: number) => {
+        const todo = todos.find((todo) => todo.id === id);
+        if (!todo) return;
+
+        const response = await TodoListService.toggleTodoCompletion(id.toString(), !todo.completed);
+
+        if (response){
+            loadTodos();
+            return;
+        } else {
+            alert('Error al actualizar el estado de la tarea');
+            return;
+        }
     };
 
-    const handleDeleteTodo = (id: number) => {
+    const handleDeleteTodo = async (id: number) => {
         if (confirm('¿Estás seguro de que deseas eliminar esta tarea?')) {
-            setTodos(todos.filter((todo) => todo.id !== id));
+            const response = await TodoListService.deleteTodoList(id.toString());
+            
+            if (response) {
+                alert('Tarea eliminada correctamente');
+                loadTodos();
+            } else {
+                alert('Error al eliminar la tarea');
+            }
         }
     };
 
     const formatDate = (dateString: string) => {
-                // Importamos los tipos necesarios y componentes para la gestión de tareas
-
         const date = new Date(dateString);
         return date.toLocaleDateString('es-ES', {
             day: '2-digit',
@@ -158,28 +130,23 @@ export default function TodosPage() {
                 <CardContent>
                     {todos.length === 0 ? (
                         <div className="text-center py-12">
-                    // Estado local con la lista de tareas (inicia con FAKE_TODOS)
-                    const [todos, setTodos] = useState<Todo[]>(FAKE_TODOS);
-                    // Controla si el modal está abierto (crear/editar)
-                    const [isModalOpen, setIsModalOpen] = useState(false);
-                    // Tarea seleccionada para editar. Null indica que se va a crear una nueva.
-                    const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+                            <p className="text-muted-foreground text-lg mb-2">
+                                No hay tareas aún
+                            </p>
                             <p className="text-muted-foreground text-sm">
                                 Comienza creando tu primera tarea
-                        // Abrir modal en modo "crear"
-                        setSelectedTodo(null); // aseguramos que no hay tarea seleccionada
-                        setIsModalOpen(true); // abrir modal
+                            </p>
+                        </div>
                     ) : (
                         <Table>
                             <TableHeader>
-                        // Abrir modal en modo "editar" con la tarea seleccionada
-                        setSelectedTodo(todo);
-                        setIsModalOpen(true);
+                                <TableRow>
+                                    <TableHead className="w-[50px]">Estado</TableHead>
                                     <TableHead>Título</TableHead>
                                     <TableHead className="hidden md:table-cell">Descripción</TableHead>
                                     <TableHead className="hidden lg:table-cell">Creada</TableHead>
                                     <TableHead className="hidden lg:table-cell">Actualizada</TableHead>
-                            // Editar un todo existente: mapeamos y reemplazamos el que coincide por id
+                                    <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -188,8 +155,7 @@ export default function TodosPage() {
                                         <TableCell>
                                             <Checkbox
                                                 checked={todo.completed}
-                            // Crear nuevo todo en cliente
-                            // Nota: id generado en cliente usando Math.max -> en producción preferir id del servidor o UUID
+                                                onCheckedChange={() => handleToggleTodo(todo.id)}
                                                 aria-label={`Marcar "${todo.title}" como ${todo.completed ? 'pendiente' : 'completada'
                                                     }`}
                                             />
@@ -198,27 +164,24 @@ export default function TodosPage() {
                                             <span
                                                 className={
                                                     todo.completed
-                            // Insertamos al inicio del array para que la nueva tarea aparezca arriba
-                            setTodos([newTodo, ...todos]);
+                                                        ? 'line-through text-muted-foreground'
                                                         : ''
                                                 }
                                             >
                                                 {todo.title}
-                        // Alterna el estado `completed` del todo con el id dado
-                        setTodos(
-                            todos.map((todo) =>
-                                todo.id === id
-                                    ? { ...todo, completed: !todo.completed, updated_at: new Date().toISOString() }
-                                    : todo
-                            )
-                        );
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            <span className="text-muted-foreground text-sm">
+                                                {todo.description || '-'}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                                             {formatDate(todo.created_at)}
                                         </TableCell>
-                        // Confirmación básica usando `confirm`. Considerar reemplazar por un modal no bloqueante.
-                        if (confirm('¿Estás seguro de que deseas eliminar esta tarea?')) {
-                            setTodos(todos.filter((todo) => todo.id !== id));
-                        }
+                                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                                            {formatDate(todo.updated_at)}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
                                                 <Button
@@ -283,4 +246,5 @@ export default function TodosPage() {
             />
         </div>
     );
+    
 }
