@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -13,12 +13,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import TodoModal from '@/components/TodoModal';
 import type { Todo } from '@/interfaces/todo.interface';
 import { TodoListService } from '@/services/todo-list.service';
+import { AuthContext } from '@/context/AuthContext';
 
 
 export default function TodosPage() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+
+    const { logOut } = useContext(AuthContext);
 
     useEffect(() => {
         loadTodos();
@@ -96,14 +99,47 @@ export default function TodosPage() {
         });
     };
 
+    const handleLogout = async () => {
+        try {
+            await logOut();
+        } catch (error) {
+            console.error('Error al cerrar sesión:', error);
+            alert('Error al cerrar sesión');
+        }
+    };
+
 
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold mb-2">Lista de Tareas</h1>
-                <p className="text-muted-foreground">
-                    Gestiona tus tareas de forma eficiente
-                </p>
+            <div className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-4xl font-bold mb-2">Lista de Tareas</h1>
+                    <p className="text-muted-foreground">
+                        Gestiona tus tareas de forma eficiente
+                    </p>
+                </div>
+                <Button 
+                    onClick={handleLogout} 
+                    variant="outline"
+                    className="flex items-center gap-2"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" x2="9" y1="12" y2="12" />
+                    </svg>
+                    Cerrar Sesión
+                </Button>
             </div>
 
             <Card className="mb-6">
